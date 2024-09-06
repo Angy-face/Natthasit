@@ -1,0 +1,63 @@
+import pandas as pd
+import torch
+from torch.utils.data import Dataset
+from PIL import Image
+
+class FontRecogdata(Dataset):
+    def __init__(self, csv_file, root_dir, transform=None):
+        self.root_dir = root_dir
+        self.transform = transform
+        self.data = pd.read_csv(csv_file)  # Load CSV file into a DataFrame
+
+        self.color_mapping = {'FF6666': 0, 
+                              '0000FF': 1, 
+                              'A020F0': 2, 
+                              'DF3030': 3, 
+                              '26E953': 4}
+        self.font_mapping = {'Athiti-Regular': 0, 
+                             'Sarabun-Regular': 1, 
+                             'NotoSerifThai-Regular': 2,
+                             'Kodchasan-Regular': 3, 
+                             'Prompt-Regular': 4, 
+                             'KhaosuayThin': 5, 
+                             'FkBeautyRegular': 6}
+        self.font_size_mapping = {18: 0, 
+                                  20: 1, 
+                                  22: 2, 
+                                  24: 3, 
+                                  26: 4, 
+                                  28: 5}
+
+        print(f"Total data found: {len(self.data)}")
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        # Get the row corresponding to the index
+        sample = self.data.iloc[idx]
+
+        # Extract values from the DataFrame
+        img_path = f"{self.root_dir}/{sample['image_path']}"  # Assuming image path is in the CSV
+        font = sample['font']
+        font_size = sample['font_size']
+        color = sample['color'].replace('#', '')  # Remove '#' from the color code
+
+        # Load image
+        image = Image.open(img_path).convert('RGB')
+
+        if self.transform:
+            image = self.transform(image)
+
+        # Encode labels as tensors
+        font_encoded = torch.tensor(self.font_mapping.get(font), dtype=torch.long)
+        font_size_encoded = torch.tensor(self.font_size_mapping.get(font_size), dtype=torch.long)
+        color_encoded = torch.tensor(self.color_mapping.get(color), dtype=torch.long)
+
+        return image, color_encoded, font_encoded, font_size_encoded
+
+# Example usage
+dataset = FontRecogdata(csv_file='train.csv', root_dir=root_dir, transform=transform)
